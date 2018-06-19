@@ -5,9 +5,11 @@ FA02 en toggl: niet gemaakt<br/>
 Instructable PDF: wilde niet downloaden, gaf pdf met als text 'internal server error' (lukte ook niet voor sparringspartner)<br/>
 XD en reflectie: in map info
 
-## Belangrijke files
-flask bestand: project1/web/web.py
-sensor bestand: project1/project1-sensor/code/sensor.py
+## Belangrijk
+flask bestand: project1/web/web.py<br/>
+sensor bestand: project1/project1-sensor/code/sensor.py</br>
+login: username = jannes, passwd = project1<br/>
+hostname = raspberrypiJC
 
 ## How to use
 1) Enable flask service en gebruik cron om sensorbestand elke 5 minuten uit te voeren
