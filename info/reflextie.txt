@@ -1,0 +1,13 @@
+Project 1, het einde van het eerste jaar NMCT waar je alles dat je geleerd hebt ook eens kan toepassen. Ik koos ervoor om een weerstation te maken, deels omdat ik niet echt wist wat anders, maar toch vooral omdat ik graag wel eens met statistieken bezig ben. Het is ook een flexibel project, want je kan makkelijk andere sensoren gebruiken en het is dus herbruikbaar.
+
+Het begin liep niet zo vlot. Na de examens was er geen motivatie om direct weer te beginnen werken en dus deed ik in de eerste week praktisch niets. De tweede week had ik wel weer motivatie en eens ik begonnen was ging het over het algemeen vlot vooruit. De schakeling was eenvoudig en online zijn er libraries waarmee je makkelijk de sensoren kan uitlezen. Ook de database hoefde niet echt ingewikkeld te zijn.
+
+Het meeste werk kwam van de website. Alle data moest verwerkt worden en na heel wat gepruts met grafieken kwam ik uiteindelijk tot een goed resultaat. Het design was niet simpel en moest enkele keren herzien worden. Na lang werken is er toch een mooi resultaat waar ik zeer tevreden van ben.
+
+Dan was er echter nog een struikelblok, namelijk het overzetten op de raspberry pi, meer specifiek het installeren en configureren van de packages. Enkele errors, de ene al wat erger dan de andere, zorgden voor veel miserie. Na vele uren googelen slaagde ik er uiteindelijk in om de problemen op te lossen en de rest verliep zonder problemen.
+
+Nu alles werkte mocht mijn pi even een nachtje buiten slapen om data te verzamelen. De volgende ochtend opstaan en zien dat alles perfect werkt, is natuurlijk een super gevoel. Er was echter nog redelijk wat werk aan de website (onder andere responsive maken) en de tijd begon te dringen. Gelukkig is alles nog op tijd klaar geraakt en het resultaat is iets waar ik trots op ben.
+
+Kort samengevat vond ik het een toffe ervaring. Het begin is altijd moeilijk voor mij, maar eens ik bezig ben amuseer ik me wel. Als ik ooit nog iets wil meten, zal ik zeker dit project hergebruiken.
+
+Ik heb door dit project het gevoel dat ik al veel kan na dit eerste jaar en het zou tof zijn moest dit in verdere jaren terugkeren.
