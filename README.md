@@ -1,5 +1,10 @@
 # Project: weerstation
 
+## Deliverables
+FA02 en toggl: niet gemaakt
+Instructable PDF: wilde niet downloaden, gaf pdf met als text 'internal server error' (lukte ook niet voor sparringspartner)
+XD en reflectie: in map info
+
 ## Belangrijke files
 flask bestand: project1/web/web.py
 sensor bestand: project1/project1-sensor/code/sensor.py
