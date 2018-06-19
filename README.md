@@ -1,8 +1,8 @@
 # Project: weerstation
 
 ## Deliverables
-FA02 en toggl: niet gemaakt
-Instructable PDF: wilde niet downloaden, gaf pdf met als text 'internal server error' (lukte ook niet voor sparringspartner)
+FA02 en toggl: niet gemaakt<br/>
+Instructable PDF: wilde niet downloaden, gaf pdf met als text 'internal server error' (lukte ook niet voor sparringspartner)<br/>
 XD en reflectie: in map info
 
 ## Belangrijke files
