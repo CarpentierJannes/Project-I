@@ -1,60 +1,46 @@
-import logging
-
-import jwt
-from flask import Flask, g, request, abort, flash, render_template, session, redirect, url_for
+from flask import Flask
+from flask import render_template, request
 from flaskext.mysql import MySQL
-from flask_httpauth import HTTPBasicAuth
-from passlib import pwd
-from passlib.hash import argon2
+from datetime import datetime
 
-log = logging.getLogger(__name__)
-app = Flask(__name__, template_folder='./templates')
+app = Flask(__name__)
 mysql = MySQL(app)
-auth = HTTPBasicAuth()
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'project1-web'
 app.config['MYSQL_DATABASE_PASSWORD'] = 'webpassword'
-app.config['MYSQL_DATABASE_DB'] = 'project1'
+app.config['MYSQL_DATABASE_DB'] = 'weerstation'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-
-# session config
-app.secret_key = pwd.genword(entropy=128)
 
 
 def get_data(sql, params=None):
     conn = mysql.connect()
     cursor = conn.cursor()
-    records = []
-
     try:
-        log.debug(sql)
         cursor.execute(sql, params)
-        result = cursor.fetchall()
-        for row in result:
-            records.append(list(row))
-
     except Exception as e:
-        log.exception("Fout bij het ophalen van data: {0})".format(e))
+        print(e)
+        return False
+
+    result = cursor.fetchall()
+    db_data = []
+    for row in result:
+        db_data.append(row)
 
     cursor.close()
     conn.close()
 
-    return records
+    return db_data
 
 
 def set_data(sql, params=None):
     conn = mysql.connect()
     cursor = conn.cursor()
-
+    print("Setting Data")
     try:
-        log.debug(sql)
         cursor.execute(sql, params)
         conn.commit()
-        log.debug("SQL uitgevoerd")
-
     except Exception as e:
-        log.exception("Fout bij uitvoeren van sql: {0})".format(e))
         return False
 
     cursor.close()
@@ -63,94 +49,143 @@ def set_data(sql, params=None):
     return True
 
 
-def add_user(user, password):
-    try:
-        if get_data('SELECT phcstring FROM project1.users WHERE userid=%s', (user,)):
-            message = 'User {} exists!'.format(user)
-            log.info(message)
-            return False, message
-
-        argon_hash = argon2.hash(password)
-        if set_data('INSERT INTO project1.users (userid, phcstring) VALUES (%s, %s);', (user, argon_hash)):
-            message = 'Added user {}'.format(user)
-            log.info(message)
-            return True, message
-
-    except Exception as e:
-        message = 'Error adding user {}: {}'.format(user, e)
-        log.error(message)
-        return False, message
-
-
-def decode_token():
-    token = session.get('auth_token')
-    if token:
-        try:
-            return jwt.decode(token, app.secret_key)
-        except Exception as e:
-            log.exception(e)
-            return None
-
-
-@auth.verify_password
-def verify_credentials(login, password):
-    if decode_token():
-        log.debug("Authenticated by token")
-        return True
-    record = get_data('SELECT phcstring FROM project1.users WHERE userid=%s', (login,))
-    if not record:
-        return False
-    authorized = argon2.verify(password, record[0][0])
-    if authorized:
-        session['auth_token'] = jwt.encode(
-            {'user': login},
-            app.secret_key,
-        )
-        # g.user = login
-    return authorized
-
-
 @app.route('/')
-def hello_world():
-    return 'Hello, World!'
+def index():
+    # check if there is data for the last 24 hours
+    if get_data("SELECT * FROM vw_data_day") == []:
+        return render_template('base.html')
+
+    # first graph (temp and hum of last 24h)
+    graph1 = {
+        'labels': [],
+        'data': []
+    }
+    data = get_data("SELECT value,round_time_5min(entrydate) FROM vw_data_day WHERE sensorID = 1")
+    dataset = {
+        'label': 'temperatuur',
+        'data': [],
+        'color': 'rgba(255,0,0,1)'
+    }
+    for item in data:
+        dataset['data'].append(item[0])
+        graph1['labels'].append(datetime.time(item[1]))
+    graph1['data'].append(dataset)
+    data = get_data("SELECT value FROM vw_data_day WHERE sensorID = 2")
+    dataset = {
+        'label': 'luchtvochtigheid',
+        'data': [],
+        'color': 'rgba(0,0,255,1)'
+    }
+    for item in data:
+        dataset['data'].append(item[0])
+    graph1['data'].append(dataset)
 
 
-@app.route('/secure')
-@auth.login_required
-def secure():
-    auth_data = decode_token()
-    if not auth_data:
-        abort(403)
-    return 'Hello, {}!'.format(auth_data.get('user'))
+    # second graph (rain)
+    graph2 = {
+        'labels': graph1['labels'],
+        'data': [],
+        'percentage': ''
+    }
+    data = get_data("SELECT value FROM vw_data_day WHERE sensorID = 4")
+    dataset = {
+        'label': 'neerslag',
+        'data': [],
+        'color': 'rgba(0,0,255,1)'
+    }
+    for item in data:
+        dataset['data'].append(item[0])
+    graph2['data'].append(dataset)
+    percentage = get_data("SELECT (SELECT COUNT(*) FROM vw_data_day WHERE sensorID = 4 AND value != 0) / (SELECT COUNT(*) FROM vw_data_day WHERE sensorID = 4)")[0][0]
+    graph2['percentage'] = int(percentage * 100)
 
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        user = request.form.get('user')
-        password = request.form.get('password')
-        if not user and password:
-            abort(400)
-        if verify_credentials(user, password):
-            return redirect(url_for('secure'))
-        flash("Authentication failed")
-    return render_template('login.html')
+    # current weather
+    current_temp = get_data("SELECT value FROM data WHERE sensorID = (SELECT sensorID FROM sensor WHERE type='temperatuur') ORDER BY entrydate DESC LIMIT 1")[0][0]
+    current_hum = get_data("SELECT value FROM data WHERE sensorID = (SELECT sensorID FROM sensor WHERE type='luchtvochtigheid') ORDER BY entrydate DESC LIMIT 1")[0][0]
+    current_press = get_data("SELECT value FROM data WHERE sensorID = (SELECT sensorID FROM sensor WHERE type='luchtdruk') ORDER BY entrydate DESC LIMIT 1")[0][0]
+    current_rain = get_data("SELECT value FROM data WHERE sensorID = (SELECT sensorID FROM sensor WHERE type='neerslag') ORDER BY entrydate DESC LIMIT 1")[0][0]
+    currentweather = [
+        '{0:.2f}'.format(current_temp) + '°C',
+        '{0:.2f}'.format(current_hum) + '%',
+        '{0:.2f}'.format(current_press) + 'mbar',
+        '{0:.2f}'.format(current_rain) + 'mm'
+    ]
 
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    result = None
-    if request.method == 'POST':
-        user = request.form.get('user')
-        password = request.form.get('password')
-        if not user and password:
-            abort(400)
-        result, message = add_user(user, password)
-        flash(message)
-    return render_template('register.html', success=result)
+    # statistics
+    stats_data_day = get_data("SELECT MIN(value), MAX(value), AVG(value) FROM vw_data_day WHERE sensorID = 1")[0]
+    stats_data_week = get_data("SELECT MIN(value), MAX(value), AVG(value) FROM vw_data_week WHERE sensorID = 1")[0]
+    stats_data_month = get_data("SELECT MIN(value), MAX(value), AVG(value) FROM vw_data_month WHERE sensorID = 1")[0]
+    stats_data_year = get_data("SELECT MIN(value), MAX(value), AVG(value) FROM vw_data_year WHERE sensorID = 1")[0]
+    stats = [
+        {
+            'name': 'vandaag',
+            'data': [
+                ['min', '{0:.1f}'.format(stats_data_day[0])],
+                ['max', '{0:.1f}'.format(stats_data_day[1])],
+                ['avg', '{0:.1f}'.format(stats_data_day[2])]
+            ]
+        }, {
+            'name': 'deze week',
+            'data': [
+                ['min', '{0:.1f}'.format(stats_data_week[0])],
+                ['max', '{0:.1f}'.format(stats_data_week[1])],
+                ['avg', '{0:.1f}'.format(stats_data_week[2])]
+            ]
+        }, {
+            'name': 'deze maand',
+            'data': [
+                ['min', '{0:.1f}'.format(stats_data_month[0])],
+                ['max', '{0:.1f}'.format(stats_data_month[1])],
+                ['avg', '{0:.1f}'.format(stats_data_month[2])]
+            ]
+        }, {
+            'name': 'dit jaar',
+            'data': [
+                ['min', '{0:.1f}'.format(stats_data_year[0])],
+                ['max', '{0:.1f}'.format(stats_data_year[1])],
+                ['avg', '{0:.1f}'.format(stats_data_year[2])]
+            ]
+        }
+    ]
+    return render_template('index.html', currentweather=currentweather, stats=stats, graph1=graph1, graph2=graph2)
+
+
+@app.route('/chart', methods=['GET', 'POST'])
+def chart():
+    graph = {
+        'labels': [],
+        'data': [],
+        'options': {
+            'sensor': {
+                'temperature': True, 'humidity': True, 'pressure': True, 'rainfall': True},
+            'period': request.args.get('period', 'day'),
+            'type': 'line'
+        }
+    }
+    if graph["options"]["period"] not in ('hour', 'day', 'week', 'month', 'year'):
+        graph["options"]["period"] = 'day'
+    sensorIDs = get_data("SELECT sensorID, type, unit FROM sensor")
+    colors = {'temperatuur': 'rgba(255,0,0,1)', 'luchtvochtigheid': 'rgba(0,128,255,1)', 'luchtdruk': 'rgba(0,255,0,1)', 'neerslag': 'rgba(0,0,255,1)'}
+    times = set()
+    for sensor in sensorIDs:
+        data = get_data("SELECT value, round_time_5min(entrydate) FROM vw_data_{0} WHERE sensorID = %s ORDER BY entrydate ASC".format(graph["options"]["period"]), sensor[0])
+        dataset = {
+            'label': sensor[1],
+            'data': [],
+            'color': colors.get(sensor[1], 'rgba(255,0,0,1)'),
+            'unit': sensor[2]
+        }
+        for item in data:
+            dataset['data'].append(item[0])
+            times.add(str(datetime.time(item[1])))
+        graph['data'].append(dataset)
+    times = list(times)
+    times.sort()
+    graph['labels'] = times
+    return render_template('chart.html',graph=graph)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    log.info("Flask app starting")
-    app.run(host='0.0.0.0', debug=True)
+    app.run()
